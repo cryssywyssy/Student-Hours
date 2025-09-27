@@ -5,43 +5,48 @@
   <style>
     body { font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 20px; }
     input, select { padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
-    button { margin: 10px 5px 10px 0; padding: 10px 20px; }
-    .progress { height: 20px; background: #eee; margin: 5px 0; }
-    .bar { height: 100%; background: #4caf50; text-align: center; color: white; }
+    button { margin: 10px 5px 10px 0; padding: 12px 30px; font-size: 1.2em; border-radius: 8px; border: none; cursor: pointer; }
+    .clock-in { background-color: #4caf50; color: white; }
+    .clock-out { background-color: #f44336; color: white; }
+    .progress { height: 20px; background: #eee; margin: 5px 0; border-radius: 5px; }
+    .bar { height: 100%; background: #4caf50; text-align: center; color: white; border-radius: 5px; }
     .section { margin-top: 30px; }
     .hidden { display: none; }
+    #current-time { font-size: 2em; margin-bottom: 15px; }
+    #clock-status { margin-top: 10px; font-size: 1.2em; color: #333; }
   </style>
 </head>
 <body>
   <h1>Student Hours Tracker</h1>
 
+  <!-- Student ID Input -->
   <div id="login-section" class="section">
     <label for="studentID">Student ID:</label>
-    <input type="text" id="studentID" placeholder="Enter your Student ID" />
+    <input type="text" id="studentID" placeholder="Enter your Student ID" onkeypress="if(event.key==='Enter'){login();}" />
   </div>
 
- <div id="clock-section" class="section hidden" style="text-align:center;">
-  <h2>Clock In / Clock Out</h2>
-  <div id="current-time" style="font-size: 2em; margin: 15px 0;"></div>
-  <button id="clock-in-btn" onclick="clockIn()" style="font-size: 1.5em; padding: 15px 40px; background-color:#4caf50; color:white; border:none; border-radius:8px; margin:10px;">Clock In</button>
-  <button id="clock-out-btn" onclick="clockOut()" style="font-size: 1.5em; padding: 15px 40px; background-color:#f44336; color:white; border:none; border-radius:8px; margin:10px;">Clock Out</button>
-  <div id="clock-status" style="margin-top:15px; font-size:1.2em; color:#333;"></div>
-</div>
+  <!-- Clock Section -->
+  <div id="clock-section" class="section hidden" style="text-align:center;">
+    <h2>Clock In / Clock Out</h2>
+    <div id="current-time"></div>
+    <button id="clock-in-btn" class="clock-in" onclick="clockIn()">Clock In</button>
+    <button id="clock-out-btn" class="clock-out" onclick="clockOut()">Clock Out</button>
+    <div id="clock-status"></div>
+  </div>
 
+  <!-- Allocate Hours Section -->
   <div id="allocate-section" class="section hidden">
     <h2>Allocate Hours to Courses</h2>
     <label for="alloc-date">Date:</label>
     <input type="date" id="alloc-date" />
-
     <label for="alloc-course">Course:</label>
     <input type="text" id="alloc-course" placeholder="Course name" />
-
-    <label for="alloc-hours">Hours to allocate:</label>
+    <label for="alloc-hours">Hours:</label>
     <input type="number" id="alloc-hours" min="0" step="0.25" placeholder="e.g. 2.5" />
-
     <button onclick="allocateHours()">Allocate Hours</button>
   </div>
 
+  <!-- Progress Section -->
   <div id="progress-section" class="section hidden">
     <h2>Your Progress</h2>
     <button onclick="loadProgress()">View Progress</button>
@@ -51,33 +56,57 @@
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbxrFNP-tO9kNUqVbSLaCJyKcgg_bks1Ysthb9MvfK97GAHheeka8o6Z6_zlKCZlxGD4/exec";
 
-    // Utility to show sections
-    function showSection(sectionId) {
-      document.querySelectorAll('.section').forEach(sec => {
-        sec.classList.add('hidden');
-      });
-      document.getElementById(sectionId).classList.remove('hidden');
-    }
+    let isClockedIn = false;
 
-    // Login / validate student ID (could enhance this by checking from backend)
+    // Live clock
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById("current-time").textContent = timeStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Show sections after entering Student ID
     function login() {
       const id = document.getElementById("studentID").value.trim();
       if (!id) {
         alert("Please enter your Student ID.");
         return;
       }
-      // Optionally: fetch from API to verify the student exists
-      showSection('clock-section');
-      showSection('allocate-section');
-      showSection('progress-section');
+
+      // Reveal sections
+      document.getElementById('clock-section').classList.remove('hidden');
+      document.getElementById('allocate-section').classList.remove('hidden');
+      document.getElementById('progress-section').classList.remove('hidden');
+
+      // Initialize clock status
+      isClockedIn = false; // Optional: fetch from backend to persist actual state
+      updateClockStatus();
     }
 
+    function updateClockStatus() {
+      const status = document.getElementById("clock-status");
+      if (isClockedIn) {
+        status.textContent = "✅ You are currently CLOCKED IN";
+        document.getElementById("clock-in-btn").disabled = true;
+        document.getElementById("clock-out-btn").disabled = false;
+      } else {
+        status.textContent = "❌ You are currently CLOCKED OUT";
+        document.getElementById("clock-in-btn").disabled = false;
+        document.getElementById("clock-out-btn").disabled = true;
+      }
+    }
+
+    // Clock In / Clock Out
     async function clockIn() {
       const id = document.getElementById("studentID").value.trim();
       if (!id) { alert("Enter your ID first."); return; }
-      const response = await fetch(`${API_URL}?action=clockIn&studentID=${encodeURIComponent(id)}`);
-      const data = await response.json();
+      const res = await fetch(`${API_URL}?action=clockIn&studentID=${encodeURIComponent(id)}`);
+      const data = await res.json();
       if (data.status === "OK") {
+        isClockedIn = true;
+        updateClockStatus();
         alert("Clocked in successfully!");
       } else {
         alert("Error: " + data.message);
@@ -87,121 +116,51 @@
     async function clockOut() {
       const id = document.getElementById("studentID").value.trim();
       if (!id) { alert("Enter your ID first."); return; }
-      const response = await fetch(`${API_URL}?action=clockOut&studentID=${encodeURIComponent(id)}`);
-      const data = await response.json();
+      const res = await fetch(`${API_URL}?action=clockOut&studentID=${encodeURIComponent(id)}`);
+      const data = await res.json();
       if (data.status === "OK") {
+        isClockedIn = false;
+        updateClockStatus();
         alert(`Clocked out. Worked ${data.hours.toFixed(2)} hours.`);
       } else {
         alert("Error: " + data.message);
       }
     }
 
+    // Allocate hours
     async function allocateHours() {
       const id = document.getElementById("studentID").value.trim();
       const date = document.getElementById("alloc-date").value;
       const course = document.getElementById("alloc-course").value.trim();
       const hours = parseFloat(document.getElementById("alloc-hours").value);
-
       if (!id || !date || !course || !hours || hours <= 0) {
-        alert("Please fill all fields properly to allocate hours.");
+        alert("Fill all fields correctly to allocate hours.");
         return;
       }
-
       const url = `${API_URL}?action=allocate&studentID=${encodeURIComponent(id)}&date=${encodeURIComponent(date)}&course=${encodeURIComponent(course)}&hours=${encodeURIComponent(hours)}`;
-
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.status === "OK") {
-        alert("Hours allocated successfully!");
-      } else {
-        alert("Error: " + data.message);
-      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.status === "OK") alert("Hours allocated successfully!");
+      else alert("Error: " + data.message);
     }
 
+    // Load progress
     async function loadProgress() {
       const id = document.getElementById("studentID").value.trim();
       if (!id) { alert("Enter your ID first."); return; }
-      const response = await fetch(`${API_URL}?action=getProgress&studentID=${encodeURIComponent(id)}`);
-      const data = await response.json();
-      if (data.status !== "OK") {
-        alert("Error: " + data.message);
-        return;
-      }
+      const res = await fetch(`${API_URL}?action=getProgress&studentID=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (data.status !== "OK") { alert("Error: " + data.message); return; }
       const container = document.getElementById("progress");
-      container.innerHTML = ""; // reset
-
+      container.innerHTML = "";
       data.courses.forEach(c => {
-        const pct = (c.progress > 100 ? 100 : c.progress).toFixed(1);
+        const pct = Math.min(c.progress, 100).toFixed(1);
         container.innerHTML += `
-          <div>
-            <strong>${c.course}</strong>: ${c.completed.toFixed(2)} / ${c.required.toFixed(2)}
-          </div>
-          <div class="progress">
-            <div class="bar" style="width:${pct}%">${pct}%</div>
-          </div>
+          <div><strong>${c.course}</strong>: ${c.completed.toFixed(2)} / ${c.required.toFixed(2)}</div>
+          <div class="progress"><div class="bar" style="width:${pct}%">${pct}%</div></div>
         `;
       });
     }
-    let isClockedIn = false; // tracks current state
-
-function updateClock() {
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  document.getElementById("current-time").textContent = timeStr;
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// Update the status text and button states
-function updateClockStatus() {
-  const status = document.getElementById("clock-status");
-  if (isClockedIn) {
-    status.textContent = "✅ You are currently CLOCKED IN";
-    document.getElementById("clock-in-btn").disabled = true;
-    document.getElementById("clock-out-btn").disabled = false;
-  } else {
-    status.textContent = "❌ You are currently CLOCKED OUT";
-    document.getElementById("clock-in-btn").disabled = false;
-    document.getElementById("clock-out-btn").disabled = true;
-  }
-}
-
-// Modify clockIn / clockOut to track state
-async function clockIn() {
-  const id = document.getElementById("studentID").value.trim();
-  if (!id) { alert("Enter your ID first."); return; }
-  const res = await fetch(`${API_URL}?action=clockIn&studentID=${encodeURIComponent(id)}`);
-  const data = await res.json();
-  if (data.status === "OK") {
-    isClockedIn = true;
-    updateClockStatus();
-    alert("Clocked in successfully!");
-  } else {
-    alert("Error: " + data.message);
-  }
-}
-
-async function clockOut() {
-  const id = document.getElementById("studentID").value.trim();
-  if (!id) { alert("Enter your ID first."); return; }
-  const res = await fetch(`${API_URL}?action=clockOut&studentID=${encodeURIComponent(id)}`);
-  const data = await res.json();
-  if (data.status === "OK") {
-    isClockedIn = false;
-    updateClockStatus();
-    alert(`Clocked out. Worked ${data.hours.toFixed(2)} hours.`);
-  } else {
-    alert("Error: " + data.message);
-  }
-}
-
-// Initialize status
-updateClockStatus();
-
-    // Optional: automatically show login, then other sections once student enters ID
-    document.getElementById("studentID").addEventListener("change", login);
   </script>
-
 </body>
 </html>
-
