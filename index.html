@@ -20,11 +20,13 @@
     <input type="text" id="studentID" placeholder="Enter your Student ID" />
   </div>
 
-  <div id="clock-section" class="section hidden">
-    <h2>Clock In / Clock Out</h2>
-    <button onclick="clockIn()">Clock In</button>
-    <button onclick="clockOut()">Clock Out</button>
-  </div>
+ <div id="clock-section" class="section hidden" style="text-align:center;">
+  <h2>Clock In / Clock Out</h2>
+  <div id="current-time" style="font-size: 2em; margin: 15px 0;"></div>
+  <button id="clock-in-btn" onclick="clockIn()" style="font-size: 1.5em; padding: 15px 40px; background-color:#4caf50; color:white; border:none; border-radius:8px; margin:10px;">Clock In</button>
+  <button id="clock-out-btn" onclick="clockOut()" style="font-size: 1.5em; padding: 15px 40px; background-color:#f44336; color:white; border:none; border-radius:8px; margin:10px;">Clock Out</button>
+  <div id="clock-status" style="margin-top:15px; font-size:1.2em; color:#333;"></div>
+</div>
 
   <div id="allocate-section" class="section hidden">
     <h2>Allocate Hours to Courses</h2>
@@ -140,6 +142,61 @@
         `;
       });
     }
+    let isClockedIn = false; // tracks current state
+
+function updateClock() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById("current-time").textContent = timeStr;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Update the status text and button states
+function updateClockStatus() {
+  const status = document.getElementById("clock-status");
+  if (isClockedIn) {
+    status.textContent = "✅ You are currently CLOCKED IN";
+    document.getElementById("clock-in-btn").disabled = true;
+    document.getElementById("clock-out-btn").disabled = false;
+  } else {
+    status.textContent = "❌ You are currently CLOCKED OUT";
+    document.getElementById("clock-in-btn").disabled = false;
+    document.getElementById("clock-out-btn").disabled = true;
+  }
+}
+
+// Modify clockIn / clockOut to track state
+async function clockIn() {
+  const id = document.getElementById("studentID").value.trim();
+  if (!id) { alert("Enter your ID first."); return; }
+  const res = await fetch(`${API_URL}?action=clockIn&studentID=${encodeURIComponent(id)}`);
+  const data = await res.json();
+  if (data.status === "OK") {
+    isClockedIn = true;
+    updateClockStatus();
+    alert("Clocked in successfully!");
+  } else {
+    alert("Error: " + data.message);
+  }
+}
+
+async function clockOut() {
+  const id = document.getElementById("studentID").value.trim();
+  if (!id) { alert("Enter your ID first."); return; }
+  const res = await fetch(`${API_URL}?action=clockOut&studentID=${encodeURIComponent(id)}`);
+  const data = await res.json();
+  if (data.status === "OK") {
+    isClockedIn = false;
+    updateClockStatus();
+    alert(`Clocked out. Worked ${data.hours.toFixed(2)} hours.`);
+  } else {
+    alert("Error: " + data.message);
+  }
+}
+
+// Initialize status
+updateClockStatus();
 
     // Optional: automatically show login, then other sections once student enters ID
     document.getElementById("studentID").addEventListener("change", login);
@@ -147,3 +204,4 @@
 
 </body>
 </html>
+
