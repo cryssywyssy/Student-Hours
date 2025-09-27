@@ -55,7 +55,7 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbxrFNP-tO9kNUqVbSLaCJyKcgg_bks1Ysthb9MvfK97GAHheeka8o6Z6_zlKCZlxGD4/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyC0xuaum6LrKIUimI8xkKp0KiGeh7u3iO3eMsqdnGjBCq97ezIhGGN2SxyWoj7HEii/exec";
     let isClockedIn = false;
 
     // Live clock
@@ -68,7 +68,7 @@
     updateClock();
 
     // Login function
-    function login() {
+    async function login() {
       const id = document.getElementById("studentID").value.trim();
       if (!id) { alert("Please enter your Student ID."); return; }
 
@@ -76,13 +76,17 @@
       document.getElementById('clock-section').classList.remove('hidden');
       document.getElementById('allocate-section').classList.remove('hidden');
       document.getElementById('progress-section').classList.remove('hidden');
-
-      // Disable ID input after login
       document.getElementById('studentID').disabled = true;
 
-      // Initialize clock status
-      isClockedIn = false; // optionally fetch from backend
-      updateClockStatus();
+      // Fetch actual clocked-in status
+      try {
+        const res = await fetch(`${API_URL}?action=getStatus&studentID=${encodeURIComponent(id)}`);
+        const data = await res.json();
+        isClockedIn = data.isClockedIn;
+        updateClockStatus();
+      } catch (err) {
+        alert("Error fetching clock status: " + err);
+      }
     }
 
     function updateClockStatus() {
@@ -102,25 +106,26 @@
     async function clockIn() {
       const id = document.getElementById("studentID").value.trim();
       if (!id) { alert("Enter your ID first."); return; }
-      const res = await fetch(`${API_URL}?action=clockIn&studentID=${encodeURIComponent(id)}`);
-      const data = await res.json();
-      if (data.status === "OK") {
-        isClockedIn = true;
-        updateClockStatus();
-        alert("Clocked in successfully!");
-      } else { alert("Error: " + data.message); }
+      try {
+        const res = await fetch(`${API_URL}?action=clockIn&studentID=${encodeURIComponent(id)}`);
+        const data = await res.json();
+        if (data.status === "OK") { isClockedIn = true; updateClockStatus(); alert("Clocked in!"); }
+        else alert("Error: " + data.message);
+      } catch (err) { alert("Error: " + err); }
     }
 
     async function clockOut() {
       const id = document.getElementById("studentID").value.trim();
       if (!id) { alert("Enter your ID first."); return; }
-      const res = await fetch(`${API_URL}?action=clockOut&studentID=${encodeURIComponent(id)}`);
-      const data = await res.json();
-      if (data.status === "OK") {
-        isClockedIn = false;
-        updateClockStatus();
-        alert(`Clocked out. Worked ${data.hours.toFixed(2)} hours.`);
-      } else { alert("Error: " + data.message); }
+      try {
+        const res = await fetch(`${API_URL}?action=clockOut&studentID=${encodeURIComponent(id)}`);
+        const data = await res.json();
+        if (data.status === "OK") { 
+          isClockedIn = false; 
+          updateClockStatus(); 
+          alert(`Clocked out. Worked ${data.hours.toFixed(2)} hours.`); 
+        } else { alert("Error: " + data.message); }
+      } catch (err) { alert("Error: " + err); }
     }
 
     // Allocate hours
@@ -132,36 +137,38 @@
       if (!id || !date || !course || !hours || hours <= 0) {
         alert("Fill all fields correctly to allocate hours."); return;
       }
-      const url = `${API_URL}?action=allocate&studentID=${encodeURIComponent(id)}&date=${encodeURIComponent(date)}&course=${encodeURIComponent(course)}&hours=${encodeURIComponent(hours)}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.status === "OK") alert("Hours allocated successfully!");
-      else alert("Error: " + data.message);
+      try {
+        const res = await fetch(`${API_URL}?action=allocate&studentID=${encodeURIComponent(id)}&date=${encodeURIComponent(date)}&course=${encodeURIComponent(course)}&hours=${encodeURIComponent(hours)}`);
+        const data = await res.json();
+        if (data.status === "OK") alert("Hours allocated successfully!");
+        else alert("Error: " + data.message);
+      } catch (err) { alert("Error: " + err); }
     }
 
     // Load progress
     async function loadProgress() {
       const id = document.getElementById("studentID").value.trim();
       if (!id) { alert("Enter your ID first."); return; }
-      const res = await fetch(`${API_URL}?action=getProgress&studentID=${encodeURIComponent(id)}`);
-      const data = await res.json();
-      if (data.status !== "OK") { alert("Error: " + data.message); return; }
-      const container = document.getElementById("progress");
-      container.innerHTML = "";
-      data.courses.forEach(c => {
-        const pct = Math.min(c.progress, 100).toFixed(1);
-        container.innerHTML += `
-          <div><strong>${c.course}</strong>: ${c.completed.toFixed(2)} / ${c.required.toFixed(2)}</div>
-          <div class="progress"><div class="bar" style="width:${pct}%">${pct}%</div></div>
-        `;
-      });
+      try {
+        const res = await fetch(`${API_URL}?action=getProgress&studentID=${encodeURIComponent(id)}`);
+        const data = await res.json();
+        if (data.status !== "OK") { alert("Error: " + data.message); return; }
+        const container = document.getElementById("progress");
+        container.innerHTML = "";
+        data.courses.forEach(c => {
+          const pct = Math.min(c.progress, 100).toFixed(1);
+          container.innerHTML += `
+            <div><strong>${c.course}</strong>: ${c.completed.toFixed(2)} / ${c.required.toFixed(2)}</div>
+            <div class="progress"><div class="bar" style="width:${pct}%">${pct}%</div></div>
+          `;
+        });
+      } catch (err) { alert("Error: " + err); }
     }
 
     // Allow Enter key to login
     document.getElementById("studentID").addEventListener("keypress", function(event) {
       if (event.key === "Enter") login();
     });
-
   </script>
 </body>
 </html>
