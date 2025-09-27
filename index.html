@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Student Hours App</title>
+  <title>Student Hours Tracker</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 20px; }
     input, select { padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
@@ -12,21 +12,22 @@
     .bar { height: 100%; background: #4caf50; text-align: center; color: white; border-radius: 5px; }
     .section { margin-top: 30px; }
     .hidden { display: none; }
-    #current-time { font-size: 2em; margin-bottom: 15px; }
-    #clock-status { margin-top: 10px; font-size: 1.2em; color: #333; }
+    #current-time { font-size: 2em; margin-bottom: 15px; text-align: center; }
+    #clock-status { margin-top: 10px; font-size: 1.2em; text-align: center; }
   </style>
 </head>
 <body>
   <h1>Student Hours Tracker</h1>
 
-  <!-- Student ID Input -->
+  <!-- Login Section -->
   <div id="login-section" class="section">
     <label for="studentID">Student ID:</label>
-    <input type="text" id="studentID" placeholder="Enter your Student ID" onkeypress="if(event.key==='Enter'){login();}" />
+    <input type="text" id="studentID" placeholder="Enter your Student ID" />
+    <button onclick="login()">Login</button>
   </div>
 
   <!-- Clock Section -->
-  <div id="clock-section" class="section hidden" style="text-align:center;">
+  <div id="clock-section" class="section hidden">
     <h2>Clock In / Clock Out</h2>
     <div id="current-time"></div>
     <button id="clock-in-btn" class="clock-in" onclick="clockIn()">Clock In</button>
@@ -55,7 +56,6 @@
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbxrFNP-tO9kNUqVbSLaCJyKcgg_bks1Ysthb9MvfK97GAHheeka8o6Z6_zlKCZlxGD4/exec";
-
     let isClockedIn = false;
 
     // Live clock
@@ -67,21 +67,21 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Show sections after entering Student ID
+    // Login function
     function login() {
       const id = document.getElementById("studentID").value.trim();
-      if (!id) {
-        alert("Please enter your Student ID.");
-        return;
-      }
+      if (!id) { alert("Please enter your Student ID."); return; }
 
-      // Reveal sections
+      // Reveal all sections
       document.getElementById('clock-section').classList.remove('hidden');
       document.getElementById('allocate-section').classList.remove('hidden');
       document.getElementById('progress-section').classList.remove('hidden');
 
+      // Disable ID input after login
+      document.getElementById('studentID').disabled = true;
+
       // Initialize clock status
-      isClockedIn = false; // Optional: fetch from backend to persist actual state
+      isClockedIn = false; // optionally fetch from backend
       updateClockStatus();
     }
 
@@ -108,9 +108,7 @@
         isClockedIn = true;
         updateClockStatus();
         alert("Clocked in successfully!");
-      } else {
-        alert("Error: " + data.message);
-      }
+      } else { alert("Error: " + data.message); }
     }
 
     async function clockOut() {
@@ -122,9 +120,7 @@
         isClockedIn = false;
         updateClockStatus();
         alert(`Clocked out. Worked ${data.hours.toFixed(2)} hours.`);
-      } else {
-        alert("Error: " + data.message);
-      }
+      } else { alert("Error: " + data.message); }
     }
 
     // Allocate hours
@@ -134,8 +130,7 @@
       const course = document.getElementById("alloc-course").value.trim();
       const hours = parseFloat(document.getElementById("alloc-hours").value);
       if (!id || !date || !course || !hours || hours <= 0) {
-        alert("Fill all fields correctly to allocate hours.");
-        return;
+        alert("Fill all fields correctly to allocate hours."); return;
       }
       const url = `${API_URL}?action=allocate&studentID=${encodeURIComponent(id)}&date=${encodeURIComponent(date)}&course=${encodeURIComponent(course)}&hours=${encodeURIComponent(hours)}`;
       const res = await fetch(url);
@@ -161,6 +156,12 @@
         `;
       });
     }
+
+    // Allow Enter key to login
+    document.getElementById("studentID").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") login();
+    });
+
   </script>
 </body>
 </html>
